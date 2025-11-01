@@ -1,10 +1,7 @@
-/* src/App.jsx */
-import React, { useState, useEffect, useRef } from 'react';
-import { User, Car, Calendar, Clock, MapPin, Phone, MessageSquare, Upload, Star, Settings, LogOut, Plus, Edit, Trash2, CheckCircle, XCircle, Eye, MessageCircle, X, Send, Paperclip, Smile, MoreVertical, AlertTriangle, Check, FileText, CreditCard, ZoomIn, ZoomOut, Image, Camera, File, Video, Globe } from 'lucide-react';
+// الكود الكامل الذي أرسلته لي (من Import React حتى export default App)
+Import React, { useState, useEffect, useRef } from 'react';
+import { User, Car, Calendar, Clock, MapPin, Phone, MessageSquare, Upload, Star, Settings, LogOut, Plus, Edit, Trash2, CheckCircle, XCircle, Eye, MessageCircle, X, Send, Paperclip, Smile, MoreVertical, AlertTriangle, Check, FileText, CreditCard, ZoomIn, ZoomOut, Image, Camera, File, Video } from 'lucide-react';
 
-/* -------------------------
-   Main App
-   ------------------------- */
 const App = () => {
   // Authentication state
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -126,7 +123,7 @@ const App = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Translation function with added backToDashboard key
+  // Translation function
   const t = (key) => {
     const translations = {
       en: {
@@ -318,21 +315,20 @@ const App = () => {
         backToDashboard: 'العودة للوحة التحكم'
       }
     };
-    return translations[language] && translations[language][key] ? translations[language][key] : key;
+    return translations[language][key] || key;
   };
 
-  // LOGIN / SIGNUP
+  // Login function
   const handleLogin = (username, password) => {
     const user = users.find(u => u.username === username && u.password === password);
     if (user) {
       setCurrentUser(user);
       setIsLoggedIn(true);
       setCurrentView(user.role === 'owner' ? 'owner-dashboard' : 'renter-dashboard');
-    } else {
-      alert('Invalid credentials (demo)');
     }
   };
 
+  // Signup function
   const handleSignup = (username, password, role) => {
     if (password.length <= 6) return;
     const newUser = {
@@ -345,7 +341,7 @@ const App = () => {
       avatar: `https://placehold.co/100x100/${role === 'owner' ? 'orange' : 'blue'}/white?text=${username[0].toUpperCase()}`,
       licenseImage: role === 'renter' ? null : 'https://placehold.co/200x150/orange/white?text=Owner+License'
     };
-    setUsers(prev => [...prev, newUser]);
+    setUsers([...users, newUser]);
     setCurrentUser(newUser);
     setIsLoggedIn(true);
     if (role === 'renter') {
@@ -355,6 +351,7 @@ const App = () => {
     }
   };
 
+  // Logout function
   const handleLogout = () => {
     setIsLoggedIn(false);
     setCurrentUser(null);
@@ -365,23 +362,22 @@ const App = () => {
   const handleCreateListing = (carData) => {
     const newCar = {
       id: cars.length + 1,
-      ownerId: currentUser?.id || 0,
+      ownerId: currentUser.id,
       ...carData,
       status: 'active',
       photos: [carData.photos[0] || 'https://placehold.co/300x200/orange/white?text=Car+Photo']
     };
-    setCars(prev => [...prev, newCar]);
+    setCars([...cars, newCar]);
     setCurrentView('owner-dashboard');
   };
 
   // Create booking
   const handleCreateBooking = (carId, timeSlot) => {
-    const ownerId = cars.find(c => c.id === carId)?.ownerId;
     const newBooking = {
       id: bookings.length + 1,
       carId,
-      renterId: currentUser?.id || 0,
-      ownerId: ownerId || 0,
+      renterId: currentUser.id,
+      ownerId: cars.find(c => c.id === carId).ownerId,
       startTime: timeSlot.start,
       endTime: timeSlot.end,
       date: timeSlot.date,
@@ -389,19 +385,21 @@ const App = () => {
       paymentReceipt: null,
       platformPhone: '+96876944031'
     };
-    setBookings(prev => [...prev, newBooking]);
+    setBookings([...bookings, newBooking]);
     setCurrentBookingId(newBooking.id);
     setCurrentView('booking-payment');
   };
 
-  // Approvals
+  // Handle booking approval
   const handleBookingApproval = (bookingId, approved) => {
-    setBookings(prev => prev.map(b => 
+    setBookings(bookings.map(b => 
       b.id === bookingId ? { ...b, status: approved ? 'accepted' : 'rejected' } : b
     ));
   };
+
+  // Handle payment approval
   const handlePaymentApproval = (bookingId, approved) => {
-    setBookings(prev => prev.map(b => 
+    setBookings(bookings.map(b => 
       b.id === bookingId ? { 
         ...b, 
         paymentStatus: approved ? 'approved' : 'rejected',
@@ -410,14 +408,12 @@ const App = () => {
     ));
   };
 
-  // Send message (uses better id generation)
-  const genId = () => (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString() + Math.random().toString(36).slice(2));
+  // Send message
   const handleSendMessage = () => {
-    if (!newMessage.trim() || !currentBookingId) return;
+    if (!newMessage.trim()) return;
     const booking = bookings.find(b => b.id === currentBookingId);
-    if (!booking) return;
     const newMsg = {
-      id: genId(),
+      id: messages.length + 1,
       bookingId: currentBookingId,
       senderId: currentUser.id,
       receiverId: currentUser.role === 'owner' ? booking.renterId : booking.ownerId,
@@ -425,88 +421,69 @@ const App = () => {
       timestamp: new Date().toISOString(),
       read: false
     };
-    setMessages(prev => [...prev, newMsg]);
+    setMessages([...messages, newMsg]);
     setNewMessage('');
   };
 
-  // Upload file (FileReader safe approach, with basic checks)
+  // Upload file (image, video, document)
   const handleFileUpload = (file, fileType) => {
     setUploadingFile(true);
-    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-
-    if (file.size > MAX_SIZE) {
-      alert('File too large (max 10MB).');
-      setUploadingFile(false);
-      return;
-    }
-
-    // Basic type checks (image/video/file)
-    if (fileType === 'image' && !file.type.startsWith('image/')) {
-      alert('Please upload an image.');
-      setUploadingFile(false);
-      return;
-    }
-    if (fileType === 'video' && !file.type.startsWith('video/')) {
-      alert('Please upload a video.');
-      setUploadingFile(false);
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
+    
+    // Simulate file upload
+    setTimeout(() => {
       const booking = bookings.find(b => b.id === currentBookingId);
       const newMsg = {
-        id: genId(),
+        id: messages.length + 1,
         bookingId: currentBookingId,
         senderId: currentUser.id,
         receiverId: currentUser.role === 'owner' ? booking.renterId : booking.ownerId,
         type: fileType,
-        content: reader.result,
+        content: URL.createObjectURL(file),
         timestamp: new Date().toISOString(),
         read: false
       };
-      setMessages(prev => [...prev, newMsg]);
+      
+      setMessages([...messages, newMsg]);
       setUploadingFile(false);
-      alert(fileType === 'image' ? t('imageUploaded') : fileType === 'video' ? t('videoUploaded') : t('fileUploaded'));
-    };
-    reader.onerror = () => {
-      setUploadingFile(false);
-      alert('File read error');
-    };
-    reader.readAsDataURL(file);
+      
+      // Show success message
+      alert(fileType === 'image' ? t('imageUploaded') : 
+            fileType === 'video' ? t('videoUploaded') : t('fileUploaded'));
+    }, 1000);
   };
 
   // Upload license
   const handleLicenseUpload = () => {
-    if (!currentUser) return;
     const updatedUser = { 
       ...currentUser, 
       license: 'uploaded_license.jpg',
       licenseImage: 'https://placehold.co/200x150/blue/white?text=Uploaded+License'
     };
     setCurrentUser(updatedUser);
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+    setUsers(users.map(u => u.id === currentUser.id ? updatedUser : u));
     setCurrentView('renter-dashboard');
   };
 
-  // Payment receipt upload (mock)
+  // Handle payment receipt upload
   const handlePaymentReceiptUpload = () => {
-    setBookings(prev => prev.map(b => 
+    const updatedBooking = bookings.map(b => 
       b.id === currentBookingId ? { 
         ...b, 
         paymentReceipt: 'https://placehold.co/300x200/green/white?text=Payment+Receipt', 
         status: 'pending', 
         paymentStatus: 'pending' 
       } : b
-    ));
+    );
+    setBookings(updatedBooking);
     setCurrentView('payment-confirmation');
   };
 
-  // Format message time
+  // Format timestamp for messages
   const formatMessageTime = (timestamp) => {
     const msgDate = new Date(timestamp);
     const now = new Date();
     const diffInDays = Math.floor((now - msgDate) / (1000 * 60 * 60 * 24));
+    
     if (diffInDays === 0) {
       return msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } else if (diffInDays === 1) {
@@ -516,17 +493,22 @@ const App = () => {
     }
   };
 
-  /* -------------------------
-     Reusable subcomponents (DocumentViewer + FileUploadModal)
-     kept inside same file for simplicity (you can split them later)
-     ------------------------- */
-
+  // Document Viewer Component
   const DocumentViewer = ({ documentUrl, title, onClose }) => {
     const [zoomLevel, setZoomLevel] = useState(1);
     const [isFullscreen, setIsFullscreen] = useState(false);
-    const handleZoomIn = () => setZoomLevel(prev => Math.min(prev + 0.1, 3));
-    const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 0.1, 0.5));
-    const toggleFullscreen = () => setIsFullscreen(!isFullscreen);
+
+    const handleZoomIn = () => {
+      setZoomLevel(prev => Math.min(prev + 0.1, 3));
+    };
+
+    const handleZoomOut = () => {
+      setZoomLevel(prev => Math.max(prev - 0.1, 0.5));
+    };
+
+    const toggleFullscreen = () => {
+      setIsFullscreen(!isFullscreen);
+    };
 
     return (
       <div className={`fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 ${isFullscreen ? 'p-0' : 'p-4'}`}>
@@ -534,16 +516,45 @@ const App = () => {
           <div className="flex justify-between items-center p-4 border-b">
             <h2 className="text-xl font-bold text-gray-900">{title}</h2>
             <div className="flex items-center gap-2">
-              <button onClick={handleZoomIn} className="p-2 text-gray-600 hover:text-gray-800" title={t('zoomIn')}><ZoomIn className="w-5 h-5" /></button>
-              <button onClick={handleZoomOut} className="p-2 text-gray-600 hover:text-gray-800" title={t('zoomOut')}><ZoomOut className="w-5 h-5" /></button>
-              <button onClick={toggleFullscreen} className="p-2 text-gray-600 hover:text-gray-800" title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}><Eye className="w-5 h-5" /></button>
-              <button onClick={onClose} className="p-2 text-gray-600 hover:text-gray-800" title={t('close')}><X className="w-5 h-5" /></button>
+              <button
+                onClick={handleZoomIn}
+                className="p-2 text-gray-600 hover:text-gray-800"
+                title={t('zoomIn')}
+              >
+                <ZoomIn className="w-5 h-5" />
+              </button>
+              <button
+                onClick={handleZoomOut}
+                className="p-2 text-gray-600 hover:text-gray-800"
+                title={t('zoomOut')}
+              >
+                <ZoomOut className="w-5 h-5" />
+              </button>
+              <button
+                onClick={toggleFullscreen}
+                className="p-2 text-gray-600 hover:text-gray-800"
+                title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+              >
+                <Eye className="w-5 h-5" />
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2 text-gray-600 hover:text-gray-800"
+                title={t('close')}
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
           </div>
           <div className="flex-1 overflow-auto p-4">
             <div className="flex justify-center items-center h-full">
               {documentUrl && (
-                <img src={documentUrl} alt={title} className="max-w-full max-h-full object-contain" style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center' }} />
+                <img
+                  src={documentUrl}
+                  alt={title}
+                  className="max-w-full max-h-full object-contain"
+                  style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center' }}
+                />
               )}
             </div>
           </div>
@@ -552,44 +563,85 @@ const App = () => {
     );
   };
 
+  // File Upload Modal Component
   const FileUploadModal = ({ onUpload, onClose }) => {
     const [selectedFile, setSelectedFile] = useState(null);
     const [fileType, setFileType] = useState('image');
     const [dragActive, setDragActive] = useState(false);
 
     const handleDrag = (e) => {
-      e.preventDefault(); e.stopPropagation();
-      if (e.type === "dragenter" || e.type === "dragover") setDragActive(true);
-      else if (e.type === "dragleave") setDragActive(false);
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.type === "dragenter" || e.type === "dragover") {
+        setDragActive(true);
+      } else if (e.type === "dragleave") {
+        setDragActive(false);
+      }
     };
+
     const handleDrop = (e) => {
-      e.preventDefault(); e.stopPropagation(); setDragActive(false);
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) setSelectedFile(e.dataTransfer.files[0]);
+      e.preventDefault();
+      e.stopPropagation();
+      setDragActive(false);
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        setSelectedFile(e.dataTransfer.files[0]);
+      }
     };
-    const handleFileChange = (e) => { if (e.target.files && e.target.files[0]) setSelectedFile(e.target.files[0]); };
-    const handleUpload = () => { if (selectedFile) { onUpload(selectedFile, fileType); onClose(); } };
+
+    const handleFileChange = (e) => {
+      if (e.target.files && e.target.files[0]) {
+        setSelectedFile(e.target.files[0]);
+      }
+    };
+
+    const handleUpload = () => {
+      if (selectedFile) {
+        onUpload(selectedFile, fileType);
+        onClose();
+      }
+    };
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-gray-900">Upload {fileType}</h2>
-            <button onClick={onClose} className="text-gray-600 hover:text-gray-800"><X className="w-5 h-5" /></button>
+            <button
+              onClick={onClose}
+              className="text-gray-600 hover:text-gray-800"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          <div className={`border-2 border-dashed rounded-lg p-6 mb-4 ${dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
-               onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}>
+          <div
+            className={`border-2 border-dashed rounded-lg p-6 mb-4 ${
+              dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+            }`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
             <div className="text-center">
               <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600 mb-2">Drag & drop your file here</p>
               <p className="text-gray-500 text-sm">or</p>
-              <input type="file" onChange={handleFileChange} className="mt-4" />
+              <input
+                type="file"
+                onChange={handleFileChange}
+                className="mt-4"
+              />
             </div>
           </div>
 
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">File Type</label>
-            <select value={fileType} onChange={(e) => setFileType(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            <select
+              value={fileType}
+              onChange={(e) => setFileType(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
               <option value="image">{t('image')}</option>
               <option value="video">{t('video')}</option>
               <option value="file">{t('file')}</option>
@@ -597,103 +649,147 @@ const App = () => {
           </div>
 
           <div className="flex gap-2">
-            <button onClick={handleUpload} disabled={!selectedFile} className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <button
+              onClick={handleUpload}
+              disabled={!selectedFile}
+              className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               {t('sendFile')}
             </button>
-            <button onClick={onClose} className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-100 transition-colors">{t('cancel')}</button>
+            <button
+              onClick={onClose}
+              className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              {t('cancel')}
+            </button>
           </div>
         </div>
       </div>
     );
   };
 
-  /* -------------------------
-     Pages (Welcome, Login, OwnerDashboard, RenterDashboard, CreateListing, UploadLicense,
-     SelectTimeSlot, BookingPayment, PaymentConfirmation, Chat)
-     -- these are ported from your code with small fixes (dynamic year, guards, etc.)
-     ------------------------- */
-
-  // WelcomePage (kept short)
-  const WelcomePage = () => (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-blue-50">
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <Car className="w-8 h-8 text-orange-600" />
-            <h1 className="text-xl font-bold text-gray-900">CarShare</h1>
+  // Welcome Page Component
+  const WelcomePage = () => {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-blue-50">
+        {/* Header */}
+        <header className="bg-white shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <Car className="w-8 h-8 text-orange-600" />
+              <h1 className="text-xl font-bold text-gray-900">CarShare</h1>
+            </div>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
+                className="text-gray-600 hover:text-gray-800 font-medium"
+              >
+                {language === 'en' ? 'العربية' : 'English'}
+              </button>
+              <button
+                onClick={() => setCurrentView('login')}
+                className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors font-medium"
+              >
+                {t('getStarted')}
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <button onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')} className="text-gray-600 hover:text-gray-800 font-medium">
-              {language === 'en' ? 'العربية' : 'English'}
-            </button>
-            <button onClick={() => setCurrentView('login')} className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors font-medium">
-              {t('getStarted')}
-            </button>
-          </div>
-        </div>
-      </header>
+        </header>
 
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="text-center lg:text-right">
-              <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6 leading-tight">
-                {language === 'ar' ? 'مرحباً بكم طلاب الجامعة التقنية والعلوم التطبيقية بنزوى' : 'Welcome Students of Nizwa University of Technology and Applied Sciences'}
-              </h1>
-              <p className="text-xl text-gray-600 mb-8 leading-relaxed">{t('safeSustainable')}</p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-end">
-                <button onClick={() => setCurrentView('login')} className="bg-orange-600 text-white px-8 py-3 rounded-lg hover:bg-orange-700 transition-colors font-semibold text-lg">{t('getStarted')}</button>
-                <button onClick={() => {}} className="border-2 border-orange-600 text-orange-600 px-8 py-3 rounded-lg hover:bg-orange-50 transition-colors font-semibold text-lg">{t('about')}</button>
+        {/* Hero Section */}
+        <section className="py-16 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              <div className="text-center lg:text-right">
+                <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6 leading-tight">
+                  {language === 'ar' 
+                    ? 'مرحباً بكم طلاب الجامعة التقنية والعلوم التطبيقية بنزوى' 
+                    : 'Welcome Students of Nizwa University of Technology and Applied Sciences'}
+                </h1>
+                <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+                  {t('safeSustainable')}
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-end">
+                  <button
+                    onClick={() => setCurrentView('login')}
+                    className="bg-orange-600 text-white px-8 py-3 rounded-lg hover:bg-orange-700 transition-colors font-semibold text-lg"
+                  >
+                    {t('getStarted')}
+                  </button>
+                  <button
+                    onClick={() => {}}
+                    className="border-2 border-orange-600 text-orange-600 px-8 py-3 rounded-lg hover:bg-orange-50 transition-colors font-semibold text-lg"
+                  >
+                    {t('about')}
+                  </button>
+                </div>
+              </div>
+              <div className="relative">
+                <img
+                  src="https://placehold.co/600x400/orange/white?text=University+Car+Sharing"
+                  alt={t('campusImageAlt')}
+                  className="rounded-2xl shadow-2xl w-full h-auto object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-orange-600/20 to-transparent rounded-2xl"></div>
               </div>
             </div>
-            <div className="relative">
-              <img src="https://placehold.co/600x400/orange/white?text=University+Car+Sharing" alt={t('campusImageAlt')} className="rounded-2xl shadow-2xl w-full h-auto object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-orange-600/20 to-transparent rounded-2xl"></div>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
+          <div className="max-w-7xl mx-auto">
+            <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">{t('features')}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="text-center p-6">
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Car className="w-8 h-8 text-orange-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">آمن وموثوق</h3>
+                <p className="text-gray-600">نظام تحقق من الهوية وتأمين شامل للسيارات</p>
+              </div>
+              <div className="text-center p-6">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Phone className="w-8 h-8 text-blue-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">دعم فوري</h3>
+                <p className="text-gray-600">خدمة عملاء متاحة على مدار الساعة</p>
+              </div>
+              <div className="text-center p-6">
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Star className="w-8 h-8 text-orange-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">تقييمات موثوقة</h3>
+                <p className="text-gray-600">نظام تقييم شفاف لبناء الثقة بين المستخدمين</p>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">{t('features')}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center p-6">
-              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4"><Car className="w-8 h-8 text-orange-600" /></div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">آمن وموثوق</h3>
-              <p className="text-gray-600">نظام تحقق من الهوية وتأمين شامل للسيارات</p>
-            </div>
-            <div className="text-center p-6">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4"><Phone className="w-8 h-8 text-blue-600" /></div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">دعم فوري</h3>
-              <p className="text-gray-600">خدمة عملاء متاحة على مدار الساعة</p>
-            </div>
-            <div className="text-center p-6">
-              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4"><Star className="w-8 h-8 text-orange-600" /></div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">تقييمات موثوقة</h3>
-              <p className="text-gray-600">نظام تقييم شفاف لبناء الثقة بين المستخدمين</p>
+        {/* Footer */}
+        <footer className="bg-gray-900 text-white py-12 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <Car className="w-8 h-8 text-orange-400" />
+                <h3 className="text-2xl font-bold">CarShare</h3>
+              </div>
+              <p className="text-gray-400 mb-6">
+                {t('universityName')}
+              </p>
+              <div className="flex justify-center gap-6">
+                <a href="#" className="text-gray-400 hover:text-white transition-colors">{t('contact')}</a>
+                <a href="#" className="text-gray-400 hover:text-white transition-colors">{t('about')}</a>
+                <a href="#" className="text-gray-400 hover:text-white transition-colors">{t('features')}</a>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </footer>
+      </div>
+    );
+  };
 
-      <footer className="bg-gray-900 text-white py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-3 mb-4"><Car className="w-8 h-8 text-orange-400" /><h3 className="text-2xl font-bold">CarShare</h3></div>
-            <p className="text-gray-400 mb-6">{t('universityName')}</p>
-            <div className="flex justify-center gap-6">
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">{t('contact')}</a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">{t('about')}</a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">{t('features')}</a>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
-
-  // Login component (kept mostly same)
+  // Login Component
   const Login = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -702,8 +798,11 @@ const App = () => {
 
     const handleSubmit = (e) => {
       e.preventDefault();
-      if (isLogin) handleLogin(username, password);
-      else handleSignup(username, password, role);
+      if (isLogin) {
+        handleLogin(username, password);
+      } else {
+        handleSignup(username, password, role);
+      }
     };
 
     return (
@@ -718,37 +817,70 @@ const App = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('username')}</label>
-              <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent" required />
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                required
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('password')}</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent" required minLength={7} />
-              {!isLogin && password.length > 0 && password.length <= 6 && (<p className="text-red-500 text-sm mt-1">Password must be more than 6 characters</p>)}
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                required
+                minLength={7}
+              />
+              {!isLogin && password.length > 0 && password.length <= 6 && (
+                <p className="text-red-500 text-sm mt-1">Password must be more than 6 characters</p>
+              )}
             </div>
 
             {!isLogin && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">{t('role')}</label>
-                <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                >
                   <option value="renter">{t('renter')}</option>
                   <option value="owner">{t('owner')}</option>
                 </select>
               </div>
             )}
 
-            <button type="submit" className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 transition-colors">{isLogin ? t('login') : t('signup')}</button>
+            <button
+              type="submit"
+              className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 transition-colors"
+            >
+              {isLogin ? t('login') : t('signup')}
+            </button>
           </form>
 
           <div className="mt-6 text-center">
-            <button onClick={() => setIsLogin(!isLogin)} className="text-orange-600 hover:text-orange-800 font-medium">
+            <button
+              onClick={() => setIsLogin(!isLogin)}
+              className="text-orange-600 hover:text-orange-800 font-medium"
+            >
               {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Login"}
             </button>
           </div>
 
           <div className="mt-6 flex justify-center">
-            <button onClick={() => { setLanguage(language === 'en' ? 'ar' : 'en'); setCurrentView('welcome'); }} className="flex items-center gap-2 text-gray-600 hover:text-gray-800">
-              <Globe className="w-5 h-5" />
+            <button
+              onClick={() => {
+                setLanguage(language === 'en' ? 'ar' : 'en');
+                setCurrentView('welcome');
+              }}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+            >
+              <GlobeIcon />
               {language === 'en' ? t('arabic') : t('english')}
             </button>
           </div>
@@ -757,20 +889,8 @@ const App = () => {
     );
   };
 
-  /* -------------------------
-     OwnerDashboard
-     ------------------------- */
+  // Owner Dashboard Component
   const OwnerDashboard = () => {
-    // guard: redirect if no user
-    useEffect(() => {
-      if (!currentUser) {
-        setIsLoggedIn(false);
-        setCurrentView('login');
-      }
-    }, [currentUser]);
-
-    if (!currentUser) return null;
-
     const myCars = cars.filter(car => car.ownerId === currentUser.id);
     const myBookings = bookings.filter(booking => booking.ownerId === currentUser.id);
 
@@ -783,8 +903,19 @@ const App = () => {
               <h1 className="text-xl font-bold text-gray-900">CarShare</h1>
             </div>
             <div className="flex items-center gap-4">
-              <button onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')} className="text-gray-600 hover:text-gray-800">{language === 'en' ? 'العربية' : 'English'}</button>
-              <button onClick={handleLogout} className="flex items-center gap-2 text-gray-600 hover:text-gray-800"><LogOut className="w-4 h-4" />{t('logout')}</button>
+              <button
+                onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
+                className="text-gray-600 hover:text-gray-800"
+              >
+                {language === 'en' ? 'العربية' : 'English'}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+              >
+                <LogOut className="w-4 h-4" />
+                {t('logout')}
+              </button>
             </div>
           </div>
         </header>
@@ -792,24 +923,44 @@ const App = () => {
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('myListings')}</h2>
-            <button onClick={() => setCurrentView('create-listing')} className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"><Plus className="w-4 h-4" />{t('createListing')}</button>
+            <button
+              onClick={() => setCurrentView('create-listing')}
+              className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              {t('createListing')}
+            </button>
           </div>
 
+          {/* My Cars */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {myCars.map(car => (
               <div key={car.id} className="bg-white rounded-lg shadow-md p-6 border border-orange-100">
-                <img src={car.photos[0]} alt={car.model} className="w-full h-48 object-cover rounded-lg mb-4" />
+                <img
+                  src={car.photos[0]}
+                  alt={car.model}
+                  className="w-full h-48 object-cover rounded-lg mb-4"
+                />
                 <h3 className="text-lg font-semibold text-gray-900">{car.model}</h3>
                 <p className="text-gray-600">{car.year}</p>
-                <p className="text-orange-600 font-semibold mt-2">{car.price} {t('omaniRial')} {t(car.priceUnit === 'hour' ? 'perHour' : 'perDay')}</p>
+                <p className="text-orange-600 font-semibold mt-2">
+                  {car.price} {t('omaniRial')} {t(car.priceUnit === 'hour' ? 'perHour' : 'perDay')}
+                </p>
                 <div className="flex gap-2 mt-4">
-                  <button className="flex items-center gap-1 text-blue-600 hover:text-blue-800"><Edit className="w-4 h-4" /> Edit</button>
-                  <button className="flex items-center gap-1 text-red-600 hover:text-red-800"><Trash2 className="w-4 h-4" /> Delete</button>
+                  <button className="flex items-center gap-1 text-blue-600 hover:text-blue-800">
+                    <Edit className="w-4 h-4" />
+                    Edit
+                  </button>
+                  <button className="flex items-center gap-1 text-red-600 hover:text-red-800">
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </button>
                 </div>
               </div>
             ))}
           </div>
 
+          {/* My Bookings */}
           <div>
             <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('myBookings')}</h2>
             <div className="space-y-4">
@@ -821,22 +972,47 @@ const App = () => {
                     <div className="flex justify-between items-start mb-4">
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">{car?.model}</h3>
-                        <p className="text-gray-600">{booking.date} • {booking.startTime} - {booking.endTime}</p>
-                        <p className="text-orange-600 font-semibold mt-1">{t('totalAmount')}: {car?.price} {t('omaniRial')}</p>
-                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold mt-2 ${booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : booking.status === 'accepted' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{t(booking.status)}</span>
+                        <p className="text-gray-600">
+                          {booking.date} • {booking.startTime} - {booking.endTime}
+                        </p>
+                        <p className="text-orange-600 font-semibold mt-1">
+                          {t('totalAmount')}: {car?.price} {t('omaniRial')}
+                        </p>
+                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold mt-2 ${
+                          booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          booking.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {t(booking.status)}
+                        </span>
                       </div>
                       {booking.status === 'pending' && (
                         <div className="flex gap-2">
-                          <button onClick={() => handleBookingApproval(booking.id, true)} className="flex items-center gap-1 bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"><CheckCircle className="w-4 h-4" /> Accept</button>
-                          <button onClick={() => handleBookingApproval(booking.id, false)} className="flex items-center gap-1 bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"><XCircle className="w-4 h-4" /> Reject</button>
+                          <button
+                            onClick={() => handleBookingApproval(booking.id, true)}
+                            className="flex items-center gap-1 bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => handleBookingApproval(booking.id, false)}
+                            className="flex items-center gap-1 bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+                          >
+                            <XCircle className="w-4 h-4" />
+                            Reject
+                          </button>
                         </div>
                       )}
                     </div>
 
-                    {/* Renter Details (only when pending) */}
+                    {/* Renter Details Section */}
                     {booking.status === 'pending' && (
                       <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                        <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2"><User className="w-4 h-4" />{t('renterDetails')}</h4>
+                        <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <User className="w-4 h-4" />
+                          {t('renterDetails')}
+                        </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <p className="text-sm text-gray-600 mb-1">{t('phoneNumber')}</p>
@@ -846,25 +1022,70 @@ const App = () => {
                             <p className="text-sm text-gray-600 mb-1">{t('driverLicense')}</p>
                             {renter?.licenseImage ? (
                               <div className="flex items-center gap-2">
-                                <img src={renter.licenseImage} alt="Driver License" className="w-24 h-18 object-cover rounded border cursor-pointer" onClick={() => setViewingDocument({ url: renter.licenseImage, title: t('driverLicense') })} />
-                                <button onClick={() => setViewingDocument({ url: renter.licenseImage, title: t('driverLicense') })} className="text-blue-600 hover:text-blue-800 text-sm">{t('viewFullLicense')}</button>
+                                <img
+                                  src={renter.licenseImage}
+                                  alt="Driver License"
+                                  className="w-24 h-18 object-cover rounded border cursor-pointer"
+                                  onClick={() => setViewingDocument({
+                                    url: renter.licenseImage,
+                                    title: t('driverLicense')
+                                  })}
+                                />
+                                <button
+                                  onClick={() => setViewingDocument({
+                                    url: renter.licenseImage,
+                                    title: t('driverLicense')
+                                  })}
+                                  className="text-blue-600 hover:text-blue-800 text-sm"
+                                >
+                                  {t('viewFullLicense')}
+                                </button>
                               </div>
-                            ) : (<p className="text-gray-500">Not uploaded</p>)}
+                            ) : (
+                              <p className="text-gray-500">Not uploaded</p>
+                            )}
                           </div>
                           <div className="md:col-span-2">
                             <p className="text-sm text-gray-600 mb-1">{t('paymentReceipt')}</p>
                             {booking.paymentReceipt ? (
                               <div className="flex items-center gap-2">
-                                <img src={booking.paymentReceipt} alt="Payment Receipt" className="w-32 h-24 object-cover rounded border cursor-pointer" onClick={() => setViewingDocument({ url: booking.paymentReceipt, title: t('paymentReceipt') })} />
-                                <button onClick={() => setViewingDocument({ url: booking.paymentReceipt, title: t('paymentReceipt') })} className="text-blue-600 hover:text-blue-800 text-sm">{t('viewFullReceipt')}</button>
+                                <img
+                                  src={booking.paymentReceipt}
+                                  alt="Payment Receipt"
+                                  className="w-32 h-24 object-cover rounded border cursor-pointer"
+                                  onClick={() => setViewingDocument({
+                                    url: booking.paymentReceipt,
+                                    title: t('paymentReceipt')
+                                  })}
+                                />
+                                <button
+                                  onClick={() => setViewingDocument({
+                                    url: booking.paymentReceipt,
+                                    title: t('paymentReceipt')
+                                  })}
+                                  className="text-blue-600 hover:text-blue-800 text-sm"
+                                >
+                                  {t('viewFullReceipt')}
+                                </button>
                               </div>
-                            ) : (<p className="text-gray-500">Not uploaded</p>)}
+                            ) : (
+                              <p className="text-gray-500">Not uploaded</p>
+                            )}
                           </div>
                         </div>
                       </div>
                     )}
 
-                    <button onClick={() => { setCurrentBookingId(booking.id); setCurrentView('chat'); }} className="flex items-center gap-2 text-orange-600 hover:text-orange-800 mt-4"><MessageCircle className="w-4 h-4" />{t('chat')}</button>
+                    <button
+                      onClick={() => {
+                        setCurrentBookingId(booking.id);
+                        setCurrentView('chat');
+                      }}
+                      className="flex items-center gap-2 text-orange-600 hover:text-orange-800 mt-4"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      {t('chat')}
+                    </button>
                   </div>
                 );
               })}
@@ -875,19 +1096,8 @@ const App = () => {
     );
   };
 
-  /* -------------------------
-     RenterDashboard
-     ------------------------- */
+  // Renter Dashboard Component
   const RenterDashboard = () => {
-    useEffect(() => {
-      if (!currentUser) {
-        setIsLoggedIn(false);
-        setCurrentView('login');
-      }
-    }, [currentUser]);
-
-    if (!currentUser) return null;
-
     const availableCars = cars.filter(car => car.status === 'active');
     const myBookings = bookings.filter(booking => booking.renterId === currentUser.id);
 
@@ -900,8 +1110,19 @@ const App = () => {
               <h1 className="text-xl font-bold text-gray-900">CarShare</h1>
             </div>
             <div className="flex items-center gap-4">
-              <button onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')} className="text-gray-600 hover:text-gray-800">{language === 'en' ? 'العربية' : 'English'}</button>
-              <button onClick={handleLogout} className="flex items-center gap-2 text-gray-600 hover:text-gray-800"><LogOut className="w-4 h-4" />{t('logout')}</button>
+              <button
+                onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
+                className="text-gray-600 hover:text-gray-800"
+              >
+                {language === 'en' ? 'العربية' : 'English'}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+              >
+                <LogOut className="w-4 h-4" />
+                {t('logout')}
+              </button>
             </div>
           </div>
         </header>
@@ -909,23 +1130,50 @@ const App = () => {
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">{t('availableCars')}</h2>
 
+          {/* Available Cars */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             {availableCars.map(car => {
               const owner = users.find(u => u.id === car.ownerId);
               return (
                 <div key={car.id} className="bg-white rounded-lg shadow-md p-6 border border-blue-100">
-                  <img src={car.photos[0]} alt={car.model} className="w-full h-48 object-cover rounded-lg mb-4" />
+                  <img
+                    src={car.photos[0]}
+                    alt={car.model}
+                    className="w-full h-48 object-cover rounded-lg mb-4"
+                  />
                   <h3 className="text-lg font-semibold text-gray-900">{car.model}</h3>
                   <p className="text-gray-600">{car.year}</p>
-                  <p className="text-orange-600 font-semibold mt-2">{car.price} {t('omaniRial')} {t(car.priceUnit === 'hour' ? 'perHour' : 'perDay')}</p>
-                  <p className="text-gray-600 flex items-center gap-1 mt-2"><MapPin className="w-4 h-4" />{car.location}</p>
-                  <p className="text-gray-600 flex items-center gap-1 mt-1"><Phone className="w-4 h-4" />{owner?.phone || 'Contact after booking'}</p>
-                  <button onClick={() => { if (currentUser.role === 'renter' && !currentUser.license) { setCurrentView('upload-license'); return; } setSelectedCarId(car.id); setCurrentView('select-time-slot'); }} className="w-full bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 transition-colors mt-4">{t('bookNow')}</button>
+                  <p className="text-orange-600 font-semibold mt-2">
+                    {car.price} {t('omaniRial')} {t(car.priceUnit === 'hour' ? 'perHour' : 'perDay')}
+                  </p>
+                  <p className="text-gray-600 flex items-center gap-1 mt-2">
+                    <MapPin className="w-4 h-4" />
+                    {car.location}
+                  </p>
+                  <p className="text-gray-600 flex items-center gap-1 mt-1">
+                    <Phone className="w-4 h-4" />
+                    {owner?.phone || 'Contact after booking'}
+                  </p>
+                  <button
+                    onClick={() => {
+                      // Check if license is uploaded for renters
+                      if (currentUser.role === 'renter' && !currentUser.license) {
+                        setCurrentView('upload-license');
+                        return;
+                      }
+                      setSelectedCarId(car.id);
+                      setCurrentView('select-time-slot');
+                    }}
+                    className="w-full bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 transition-colors mt-4"
+                  >
+                    {t('bookNow')}
+                  </button>
                 </div>
               );
             })}
           </div>
 
+          {/* My Bookings */}
           <div>
             <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('myBookings')}</h2>
             <div className="space-y-4">
@@ -936,15 +1184,58 @@ const App = () => {
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">{car?.model}</h3>
-                        <p className="text-gray-600">{booking.date} • {booking.startTime} - {booking.endTime}</p>
-                        <p className="text-orange-600 font-semibold mt-1">{t('totalAmount')}: {car?.price} {t('omaniRial')}</p>
-                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold mt-2 ${booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : booking.status === 'accepted' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{t(booking.status)}</span>
+                        <p className="text-gray-600">
+                          {booking.date} • {booking.startTime} - {booking.endTime}
+                        </p>
+                        <p className="text-orange-600 font-semibold mt-1">
+                          {t('totalAmount')}: {car?.price} {t('omaniRial')}
+                        </p>
+                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold mt-2 ${
+                          booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          booking.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {t(booking.status)}
+                        </span>
                       </div>
-                      {booking.status === 'pending' && !booking.paymentReceipt && (<button onClick={() => { setCurrentBookingId(booking.id); setCurrentView('booking-payment'); }} className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700">{t('uploadReceipt')}</button>)}
-                      {booking.status === 'pending' && booking.paymentReceipt && !booking.paymentStatus && (<button onClick={() => { setCurrentBookingId(booking.id); setCurrentView('payment-confirmation'); }} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">{t('viewReceipt')}</button>)}
+                      {booking.status === 'pending' && !booking.paymentReceipt && (
+                        <button
+                          onClick={() => {
+                            setCurrentBookingId(booking.id);
+                            setCurrentView('booking-payment');
+                          }}
+                          className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
+                        >
+                          {t('uploadReceipt')}
+                        </button>
+                      )}
+                      {booking.status === 'pending' && booking.paymentReceipt && !booking.paymentStatus && (
+                        <button
+                          onClick={() => {
+                            setCurrentBookingId(booking.id);
+                            setCurrentView('payment-confirmation');
+                          }}
+                          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                        >
+                          {t('viewReceipt')}
+                        </button>
+                      )}
                     </div>
-                    {booking.status === 'accepted' && (<div className="mt-4 p-4 bg-green-50 rounded-lg"><p className="text-green-800 font-medium">{t('platformPhone')}</p></div>)}
-                    <button onClick={() => { setCurrentBookingId(booking.id); setCurrentView('chat'); }} className="flex items-center gap-2 text-orange-600 hover:text-orange-800 mt-4"><MessageCircle className="w-4 h-4" />{t('chat')}</button>
+                    {booking.status === 'accepted' && (
+                      <div className="mt-4 p-4 bg-green-50 rounded-lg">
+                        <p className="text-green-800 font-medium">{t('platformPhone')}</p>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => {
+                        setCurrentBookingId(booking.id);
+                        setCurrentView('chat');
+                      }}
+                      className="flex items-center gap-2 text-orange-600 hover:text-orange-800 mt-4"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      {t('chat')}
+                    </button>
                   </div>
                 );
               })}
@@ -955,9 +1246,7 @@ const App = () => {
     );
   };
 
-  /* -------------------------
-     CreateListing
-     ------------------------- */
+  // Create Listing Component
   const CreateListing = () => {
     const [formData, setFormData] = useState({
       model: '',
@@ -974,15 +1263,35 @@ const App = () => {
       handleCreateListing(formData);
     };
 
-    const addTimeSlot = () => setFormData(prev => ({ ...prev, availableTimes: [...prev.availableTimes, { start: '', end: '', date: '' }] }));
-    const removeTimeSlot = (index) => setFormData(prev => ({ ...prev, availableTimes: prev.availableTimes.filter((_, i) => i !== index) }));
-    const updateTimeSlot = (index, field, value) => setFormData(prev => ({ ...prev, availableTimes: prev.availableTimes.map((slot, i) => i === index ? { ...slot, [field]: value } : slot) }));
+    const addTimeSlot = () => {
+      setFormData({
+        ...formData,
+        availableTimes: [...formData.availableTimes, { start: '', end: '', date: '' }]
+      });
+    };
+
+    const removeTimeSlot = (index) => {
+      const newTimes = formData.availableTimes.filter((_, i) => i !== index);
+      setFormData({ ...formData, availableTimes: newTimes });
+    };
+
+    const updateTimeSlot = (index, field, value) => {
+      const newTimes = formData.availableTimes.map((slot, i) =>
+        i === index ? { ...slot, [field]: value } : slot
+      );
+      setFormData({ ...formData, availableTimes: newTimes });
+    };
 
     return (
       <div className="min-h-screen bg-gray-50">
         <header className="bg-white shadow-sm border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-            <button onClick={() => setCurrentView('owner-dashboard')} className="text-orange-600 hover:text-orange-800">← Back to Dashboard</button>
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <button
+              onClick={() => setCurrentView('owner-dashboard')}
+              className="text-orange-600 hover:text-orange-800"
+            >
+              ← Back to Dashboard
+            </button>
             <h1 className="text-xl font-bold text-gray-900">{t('createListing')}</h1>
           </div>
         </header>
@@ -991,32 +1300,74 @@ const App = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('carModel')}</label>
-              <input type="text" value={formData.model} onChange={(e) => setFormData({ ...formData, model: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent" required />
+              <input
+                type="text"
+                value={formData.model}
+                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                required
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('year')}</label>
-              <input type="number" value={formData.year} onChange={(e) => setFormData({ ...formData, year: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent" required min="1990" max={new Date().getFullYear()} />
+              <input
+                type="number"
+                value={formData.year}
+                onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                required
+                min="1990"
+                max="2024"
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('photos')}</label>
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                <img src={formData.photos[0]} alt="Car preview" className="w-full h-48 object-cover rounded-lg mb-4" />
+                <img
+                  src={formData.photos[0]}
+                  alt="Car preview"
+                  className="w-full h-48 object-cover rounded-lg mb-4"
+                />
                 <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                 <p className="text-gray-600 text-sm">Car photo (mandatory)</p>
-                <input type="file" accept="image/*" onChange={(e) => { if (e.target.files[0]) { const reader = new FileReader(); reader.onload = (event) => setFormData(prev => ({ ...prev, photos: [event.target.result] })); reader.readAsDataURL(e.target.files[0]); } }} className="mt-2" />
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={(e) => {
+                    if (e.target.files[0]) {
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        setFormData({ ...formData, photos: [event.target.result] });
+                      };
+                      reader.readAsDataURL(e.target.files[0]);
+                    }
+                  }}
+                  className="mt-2"
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">{t('price')}</label>
-                <input type="number" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent" required min="1" />
+                <input
+                  type="number"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  required
+                  min="1"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Unit</label>
-                <select value={formData.priceUnit} onChange={(e) => setFormData({ ...formData, priceUnit: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+                <select
+                  value={formData.priceUnit}
+                  onChange={(e) => setFormData({ ...formData, priceUnit: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                >
                   <option value="hour">{t('perHour')}</option>
                   <option value="day">{t('perDay')}</option>
                 </select>
@@ -1027,276 +1378,549 @@ const App = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('availableTimes')}</label>
               {formData.availableTimes.map((slot, index) => (
                 <div key={index} className="grid grid-cols-3 gap-2 mb-2">
-                  <input type="date" value={slot.date} onChange={(e) => updateTimeSlot(index, 'date', e.target.value)} className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-transparent" required />
-                  <input type="time" value={slot.start} onChange={(e) => updateTimeSlot(index, 'start', e.target.value)} className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-transparent" required />
-                  <input type="time" value={slot.end} onChange={(e) => updateTimeSlot(index, 'end', e.target.value)} className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-transparent" required />
-                  {index > 0 && (<button type="button" onClick={() => removeTimeSlot(index)} className="text-red-600 hover:text-red-800 col-span-3 mt-2">Remove Time Slot</button>)}
+                  <input
+                    type="date"
+                    value={slot.date}
+                    onChange={(e) => updateTimeSlot(index, 'date', e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    required
+                  />
+                  <input
+                    type="time"
+                    value={slot.start}
+                    onChange={(e) => updateTimeSlot(index, 'start', e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    required
+                  />
+                  <input
+                    type="time"
+                    value={slot.end}
+                    onChange={(e) => updateTimeSlot(index, 'end', e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    required
+                  />
+                  {index > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => removeTimeSlot(index)}
+                      className="text-red-600 hover:text-red-800 col-span-3 mt-2"
+                    >
+                      Remove Time Slot
+                    </button>
+                  )}
                 </div>
               ))}
-              <button type="button" onClick={addTimeSlot} className="text-orange-600 hover:text-orange-800">+ Add Time Slot</button>
+              <button
+                type="button"
+                onClick={addTimeSlot}
+                className="text-orange-600 hover:text-orange-800"
+              >
+                + Add Time Slot
+              </button>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('location')}</label>
-              <input type="text" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent" required />
+              <input
+                type="text"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                required
+              />
             </div>
 
-            <button type="submit" className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 transition-colors">Create Listing</button>
+            <button
+              type="submit"
+              className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 transition-colors"
+            >
+              Create Listing
+            </button>
           </form>
         </main>
       </div>
     );
   };
 
-  /* -------------------------
-     UploadLicense, SelectTimeSlot, BookingPayment, PaymentConfirmation, Chat
-     (kept similar to what you sent with guards & small fixes)
-     ------------------------- */
+  // Upload License Component
+  const UploadLicense = () => {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-blue-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+          <div className="text-center mb-6">
+            <User className="w-16 h-16 text-orange-600 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-gray-900">{t('licenseRequired')}</h2>
+            <p className="text-gray-600 mt-2">Please upload your valid driver's license to continue</p>
+          </div>
 
-  const UploadLicense = () => (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-blue-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-        <div className="text-center mb-6">
-          <User className="w-16 h-16 text-orange-600 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900">{t('licenseRequired')}</h2>
-          <p className="text-gray-600 mt-2">Please upload your valid driver's license to continue</p>
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6">
+            <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">{t('uploadLicense')}</p>
+            <input type="file" className="mt-2" accept="image/*" />
+          </div>
+
+          <button
+            onClick={handleLicenseUpload}
+            className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 transition-colors"
+          >
+            {t('uploadLicense')}
+          </button>
+
+          <button
+            onClick={() => setCurrentView('renter-dashboard')}
+            className="w-full mt-4 text-gray-600 hover:text-gray-800"
+          >
+            {t('cancel')}
+          </button>
         </div>
-
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6">
-          <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">{t('uploadLicense')}</p>
-          <input type="file" className="mt-2" accept="image/*" />
-        </div>
-
-        <button onClick={handleLicenseUpload} className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 transition-colors">{t('uploadLicense')}</button>
-        <button onClick={() => setCurrentView('renter-dashboard')} className="w-full mt-4 text-gray-600 hover:text-gray-800">{t('cancel')}</button>
       </div>
-    </div>
-  );
+    );
+  };
 
+  // Select Time Slot Component
   const SelectTimeSlot = () => {
     const car = cars.find(c => c.id === selectedCarId);
     if (!car) return null;
-    const handleSelectTimeSlot = (timeSlot) => { setSelectedTimeSlot(timeSlot); handleCreateBooking(selectedCarId, timeSlot); };
+
+    const handleSelectTimeSlot = (timeSlot) => {
+      setSelectedTimeSlot(timeSlot);
+      handleCreateBooking(selectedCarId, timeSlot);
+    };
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-blue-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
           <div className="flex justify-between items-center mb-6">
-            <button onClick={() => setCurrentView('renter-dashboard')} className="text-gray-600 hover:text-gray-800"><X className="w-6 h-6" /></button>
+            <button
+              onClick={() => setCurrentView('renter-dashboard')}
+              className="text-gray-600 hover:text-gray-800"
+            >
+              <X className="w-6 h-6" />
+            </button>
             <h2 className="text-xl font-bold text-gray-900">{t('selectTimeSlot')}</h2>
             <div></div>
           </div>
 
           <div className="mb-6">
-            <img src={car.photos[0]} alt={car.model} className="w-full h-48 object-cover rounded-lg mb-4" />
+            <img
+              src={car.photos[0]}
+              alt={car.model}
+              className="w-full h-48 object-cover rounded-lg mb-4"
+            />
             <h3 className="text-lg font-semibold text-gray-900">{car.model}</h3>
             <p className="text-gray-600">{car.year}</p>
-            <p className="text-orange-600 font-semibold mt-2">{car.price} {t('omaniRial')} {t(car.priceUnit === 'hour' ? 'perHour' : 'perDay')}</p>
+            <p className="text-orange-600 font-semibold mt-2">
+              {car.price} {t('omaniRial')} {t(car.priceUnit === 'hour' ? 'perHour' : 'perDay')}
+            </p>
           </div>
 
           <div className="space-y-3">
-            {car.availableTimes.length > 0 ? car.availableTimes.map((slot, index) => (
-              <button key={index} onClick={() => handleSelectTimeSlot(slot)} className="w-full p-4 border border-gray-200 rounded-lg hover:border-orange-300 hover:bg-orange-50 text-left transition-colors">
-                <div className="font-medium">{slot.date}</div>
-                <div className="text-gray-600">{slot.start} - {slot.end}</div>
-              </button>
-            )) : (<p className="text-gray-600 text-center py-8">{t('noAvailableSlots')}</p>)}
+            {car.availableTimes.length > 0 ? (
+              car.availableTimes.map((slot, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleSelectTimeSlot(slot)}
+                  className="w-full p-4 border border-gray-200 rounded-lg hover:border-orange-300 hover:bg-orange-50 text-left transition-colors"
+                >
+                  <div className="font-medium">{slot.date}</div>
+                  <div className="text-gray-600">{slot.start} - {slot.end}</div>
+                </button>
+              ))
+            ) : (
+              <p className="text-gray-600 text-center py-8">{t('noAvailableSlots')}</p>
+            )}
           </div>
         </div>
       </div>
     );
   };
 
+  // Booking Payment Component
   const BookingPayment = () => {
     const booking = bookings.find(b => b.id === currentBookingId);
     const car = cars.find(c => c.id === booking?.carId);
-    if (!booking || !car) return null;
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-blue-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
           <div className="flex justify-between items-center mb-6">
-            <button onClick={() => setCurrentView('renter-dashboard')} className="text-gray-600 hover:text-gray-800"><X className="w-6 h-6" /></button>
+            <button
+              onClick={() => setCurrentView('renter-dashboard')}
+              className="text-gray-600 hover:text-gray-800"
+            >
+              <X className="w-6 h-6" />
+            </button>
             <h2 className="text-xl font-bold text-gray-900">{t('confirmBooking')}</h2>
             <div></div>
           </div>
 
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-semibold text-gray-900">{car.model}</h3>
-            <p className="text-gray-600">{booking.date} • {booking.startTime} - {booking.endTime}</p>
-            <p className="text-orange-600 font-semibold mt-2">{t('totalAmount')}: {car.price} {t('omaniRial')}</p>
-          </div>
+          {car && booking && (
+            <>
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <h3 className="font-semibold text-gray-900">{car.model}</h3>
+                <p className="text-gray-600">{booking.date} • {booking.startTime} - {booking.endTime}</p>
+                <p className="text-orange-600 font-semibold mt-2">
+                  {t('totalAmount')}: {car.price} {t('omaniRial')}
+                </p>
+              </div>
 
-          <div className="mb-6 p-4 bg-orange-50 rounded-lg border border-orange-200">
-            <p className="text-orange-800 font-medium text-center">{t('platformPhone')}</p>
-            <p className="text-orange-600 text-sm mt-2 text-center">{t('transferAmount')}</p>
-          </div>
+              <div className="mb-6 p-4 bg-orange-50 rounded-lg border border-orange-200">
+                <p className="text-orange-800 font-medium text-center">{t('platformPhone')}</p>
+                <p className="text-orange-600 text-sm mt-2 text-center">{t('transferAmount')}</p>
+              </div>
 
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6">
-            <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">{t('uploadReceipt')}</p>
-            <input type="file" className="mt-2" accept="image/*" />
-          </div>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-6">
+                <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">{t('uploadReceipt')}</p>
+                <input type="file" className="mt-2" accept="image/*" />
+              </div>
 
-          <button onClick={handlePaymentReceiptUpload} className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 transition-colors mb-4">{t('confirmPayment')}</button>
-          <button onClick={() => setCurrentView('renter-dashboard')} className="w-full text-gray-600 hover:text-gray-800">{t('cancel')}</button>
+              <button
+                onClick={handlePaymentReceiptUpload}
+                className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 transition-colors mb-4"
+              >
+                {t('confirmPayment')}
+              </button>
+
+              <button
+                onClick={() => setCurrentView('renter-dashboard')}
+                className="w-full text-gray-600 hover:text-gray-800"
+              >
+                {t('cancel')}
+              </button>
+            </>
+          )}
         </div>
       </div>
     );
   };
 
+  // Payment Confirmation Component
   const PaymentConfirmation = () => {
     const booking = bookings.find(b => b.id === currentBookingId);
     const car = cars.find(c => c.id === booking?.carId);
     const owner = users.find(u => u.id === booking?.ownerId);
-    if (!booking || !car) return null;
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-blue-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
           <div className="flex justify-between items-center mb-6">
-            <button onClick={() => setCurrentView('renter-dashboard')} className="text-gray-600 hover:text-gray-800"><X className="w-6 h-6" /></button>
+            <button
+              onClick={() => setCurrentView('renter-dashboard')}
+              className="text-gray-600 hover:text-gray-800"
+            >
+              <X className="w-6 h-6" />
+            </button>
             <h2 className="text-xl font-bold text-gray-900">{t('paymentConfirmation')}</h2>
             <div></div>
           </div>
 
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="font-semibold text-gray-900">{car.model}</h3>
-            <p className="text-gray-600">{booking.date} • {booking.startTime} - {booking.endTime}</p>
-            <p className="text-orange-600 font-semibold mt-2">{t('totalAmount')}: {car.price} {t('omaniRial')}</p>
-          </div>
+          {car && booking && (
+            <>
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <h3 className="font-semibold text-gray-900">{car.model}</h3>
+                <p className="text-gray-600">{booking.date} • {booking.startTime} - {booking.endTime}</p>
+                <p className="text-orange-600 font-semibold mt-2">
+                  {t('totalAmount')}: {car.price} {t('omaniRial')}
+                </p>
+              </div>
 
-          <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="flex items-center gap-2 mb-2"><Check className="w-5 h-5 text-blue-600" /><p className="font-medium text-blue-800">{t('receiptSent')}</p></div>
-            <p className="text-blue-600 text-sm">{t('paymentStatus')}: {booking.paymentStatus || t('pendingApproval')}</p>
-          </div>
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Check className="w-5 h-5 text-blue-600" />
+                  <p className="font-medium text-blue-800">{t('receiptSent')}</p>
+                </div>
+                <p className="text-blue-600 text-sm">
+                  {t('paymentStatus')}: {booking.paymentStatus || t('pendingApproval')}
+                </p>
+              </div>
 
-          {booking.paymentReceipt && (
-            <div className="mb-6">
-              <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2"><FileText className="w-4 h-4" />{t('paymentReceipt')}</h4>
-              <img src={booking.paymentReceipt} alt="Payment Receipt" className="w-full h-auto object-cover rounded-lg cursor-pointer" onClick={() => setViewingDocument({ url: booking.paymentReceipt, title: t('paymentReceipt') })} />
-              <button onClick={() => setViewingDocument({ url: booking.paymentReceipt, title: t('paymentReceipt') })} className="mt-2 text-blue-600 hover:text-blue-800 text-sm">{t('viewFullReceipt')}</button>
-            </div>
+              {booking.paymentReceipt && (
+                <div className="mb-6">
+                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    {t('paymentReceipt')}
+                  </h4>
+                  <img
+                    src={booking.paymentReceipt}
+                    alt="Payment Receipt"
+                    className="w-full h-auto object-cover rounded-lg cursor-pointer"
+                    onClick={() => setViewingDocument({
+                      url: booking.paymentReceipt,
+                      title: t('paymentReceipt')
+                    })}
+                  />
+                  <button
+                    onClick={() => setViewingDocument({
+                      url: booking.paymentReceipt,
+                      title: t('paymentReceipt')
+                    })}
+                    className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
+                  >
+                    {t('viewFullReceipt')}
+                  </button>
+                </div>
+              )}
+
+              {booking.paymentStatus === 'approved' && (
+                <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <p className="font-medium text-green-800">{t('paymentApproved')}</p>
+                  </div>
+                  <p className="text-green-600 text-sm">
+                    {t('platformPhone')}
+                  </p>
+                </div>
+              )}
+
+              {booking.paymentStatus === 'rejected' && (
+                <div className="mb-6 p-4 bg-red-50 rounded-lg border border-red-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                    <p className="font-medium text-red-800">{t('paymentRejected')}</p>
+                  </div>
+                  <p className="text-red-600 text-sm">
+                    Please contact the car owner for more information.
+                  </p>
+                </div>
+              )}
+
+              <button
+                onClick={() => setCurrentView('renter-dashboard')}
+                className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 transition-colors"
+              >
+                {t('backToDashboard')}
+              </button>
+            </>
           )}
-
-          {booking.paymentStatus === 'approved' && (
-            <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
-              <div className="flex items-center gap-2 mb-2"><CheckCircle className="w-5 h-5 text-green-600" /><p className="font-medium text-green-800">{t('paymentApproved')}</p></div>
-              <p className="text-green-600 text-sm">{t('platformPhone')}</p>
-            </div>
-          )}
-
-          {booking.paymentStatus === 'rejected' && (
-            <div className="mb-6 p-4 bg-red-50 rounded-lg border border-red-200">
-              <div className="flex items-center gap-2 mb-2"><AlertTriangle className="w-5 h-5 text-red-600" /><p className="font-medium text-red-800">{t('paymentRejected')}</p></div>
-              <p className="text-red-600 text-sm">Please contact the car owner for more information.</p>
-            </div>
-          )}
-
-          <button onClick={() => setCurrentView('renter-dashboard')} className="w-full bg-orange-600 text-white py-3 rounded-lg font-semibold hover:bg-orange-700 transition-colors">{t('backToDashboard')}</button>
         </div>
       </div>
     );
   };
 
-  /* -------------------------
-     Chat component
-     ------------------------- */
+  // Enhanced Chat Component
   const Chat = () => {
     const [showFileUploadModal, setShowFileUploadModal] = useState(false);
     const booking = bookings.find(b => b.id === currentBookingId);
-    const otherUser = users.find(u => u.id === (currentUser?.role === 'owner' ? booking?.renterId : booking?.ownerId));
+    const otherUser = users.find(u => 
+      u.id === (currentUser.role === 'owner' ? booking?.renterId : booking?.ownerId)
+    );
     const bookingMessages = messages.filter(m => m.bookingId === currentBookingId);
     const car = cars.find(c => c.id === booking?.carId);
-
-    // guard
-    useEffect(() => {
-      if (!currentUser) {
-        setIsLoggedIn(false);
-        setCurrentView('login');
-      }
-    }, [currentUser]);
 
     // Mark messages as read
     useEffect(() => {
       if (bookingMessages.length > 0) {
-        const unreadMessages = bookingMessages.filter(msg => msg.receiverId === currentUser?.id && !msg.read);
+        const unreadMessages = bookingMessages.filter(msg => 
+          msg.receiverId === currentUser.id && !msg.read
+        );
         if (unreadMessages.length > 0) {
-          setMessages(prev => prev.map(msg => unreadMessages.find(un => un.id === msg.id) ? { ...msg, read: true } : msg));
+          setMessages(prev => prev.map(msg => 
+            unreadMessages.find(unread => unread.id === msg.id) 
+              ? { ...msg, read: true } 
+              : msg
+          ));
         }
       }
-    }, [bookingMessages, currentUser?.id]);
+    }, [bookingMessages, currentUser.id]);
 
-    const otherUserOnline = true;
+    const otherUserOnline = true; // In a real app, this would be based on actual online status
 
     return (
       <div className="min-h-screen bg-gray-50">
         <header className="bg-white shadow-sm border-b">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-            <button onClick={() => setCurrentView(currentUser?.role === 'owner' ? 'owner-dashboard' : 'renter-dashboard')} className="text-gray-600 hover:text-gray-800">← Back</button>
+            <button
+              onClick={() => setCurrentView(currentUser.role === 'owner' ? 'owner-dashboard' : 'renter-dashboard')}
+              className="text-gray-600 hover:text-gray-800"
+            >
+              ← Back
+            </button>
             <div className="flex items-center gap-3">
               <div className="relative">
-                <img src={otherUser?.avatar} alt={otherUser?.username} className="w-10 h-10 rounded-full" />
-                {otherUserOnline && (<div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>)}
+                <img
+                  src={otherUser?.avatar}
+                  alt={otherUser?.username}
+                  className="w-10 h-10 rounded-full"
+                />
+                {otherUserOnline && (
+                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                )}
               </div>
               <div>
                 <h2 className="font-semibold text-gray-900">{otherUser?.username}</h2>
-                <p className="text-sm text-gray-600">{otherUserOnline ? t('online') : t('offline')}</p>
+                <p className="text-sm text-gray-600">
+                  {otherUserOnline ? t('online') : t('offline')}
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2"><button className="text-gray-600 hover:text-gray-800"><MoreVertical className="w-5 h-5" /></button></div>
+            <div className="flex items-center gap-2">
+              <button className="text-gray-600 hover:text-gray-800">
+                <MoreVertical className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </header>
 
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          {car && (<div className="bg-white rounded-lg shadow-sm p-4 mb-4 flex items-center gap-3 border-l-4 border-orange-500">
-            <img src={car.photos[0]} alt={car.model} className="w-12 h-12 object-cover rounded" />
-            <div><p className="font-medium text-gray-900 text-sm">{car.model}</p><p className="text-gray-600 text-xs">{booking?.date} • {booking?.startTime} - {booking?.endTime}</p></div>
-          </div>)}
+          {/* Car info banner */}
+          {car && (
+            <div className="bg-white rounded-lg shadow-sm p-4 mb-4 flex items-center gap-3 border-l-4 border-orange-500">
+              <img
+                src={car.photos[0]}
+                alt={car.model}
+                className="w-12 h-12 object-cover rounded"
+              />
+              <div>
+                <p className="font-medium text-gray-900 text-sm">{car.model}</p>
+                <p className="text-gray-600 text-xs">
+                  {booking?.date} • {booking?.startTime} - {booking?.endTime}
+                </p>
+              </div>
+            </div>
+          )}
 
+          {/* Messages container */}
           <div className="bg-white rounded-lg shadow-md h-96 overflow-y-auto p-4 mb-4">
             {bookingMessages.map(msg => {
-              const isOwnMessage = msg.senderId === currentUser?.id;
+              const isOwnMessage = msg.senderId === currentUser.id;
               const sender = users.find(u => u.id === msg.senderId);
-
+              
               return (
-                <div key={msg.id} className={`mb-4 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
-                  {!isOwnMessage && (<div className="flex items-center gap-2 mb-1"><img src={sender?.avatar} alt={sender?.username} className="w-6 h-6 rounded-full" /><span className="text-xs font-medium text-gray-700">{sender?.username}</span></div>)}
-                  {msg.type === 'image' ? (
-                    <div className={`inline-block p-2 rounded-2xl max-w-xs lg:max-w-md ${isOwnMessage ? 'bg-orange-600 text-white rounded-br-none' : 'bg-gray-100 text-gray-800 rounded-bl-none'}`}><img src={msg.content} alt="Shared image" className="max-w-full max-h-48 object-cover rounded" /></div>
-                  ) : msg.type === 'video' ? (
-                    <div className={`inline-block p-2 rounded-2xl max-w-xs lg:max-w-md ${isOwnMessage ? 'bg-orange-600 text-white rounded-br-none' : 'bg-gray-100 text-gray-800 rounded-bl-none'}`}><video src={msg.content} controls className="max-w-full max-h-48 object-cover rounded" /></div>
-                  ) : msg.type === 'file' ? (
-                    <div className={`inline-block p-2 rounded-2xl max-w-xs lg:max-w-md ${isOwnMessage ? 'bg-orange-600 text-white rounded-br-none' : 'bg-gray-100 text-gray-800 rounded-bl-none'}`}><div className="flex items-center gap-2"><File className="w-5 h-5" /><span>Shared file</span></div></div>
-                  ) : (
-                    <div className={`inline-block p-3 rounded-2xl max-w-xs lg:max-w-md ${isOwnMessage ? 'bg-orange-600 text-white rounded-br-none' : 'bg-gray-100 text-gray-800 rounded-bl-none'}`}><p className="text-sm">{msg.message}</p></div>
+                <div
+                  key={msg.id}
+                  className={`mb-4 ${isOwnMessage ? 'text-right' : 'text-left'}`}
+                >
+                  {!isOwnMessage && (
+                    <div className="flex items-center gap-2 mb-1">
+                      <img
+                        src={sender?.avatar}
+                        alt={sender?.username}
+                        className="w-6 h-6 rounded-full"
+                      />
+                      <span className="text-xs font-medium text-gray-700">
+                        {sender?.username}
+                      </span>
+                    </div>
                   )}
-                  <p className={`text-xs text-gray-500 mt-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>{formatMessageTime(msg.timestamp)}{isOwnMessage && !msg.read && (<span className="ml-1">✓✓</span>)}{isOwnMessage && msg.read && (<span className="ml-1 text-blue-500">✓✓</span>)}</p>
+                  {msg.type === 'image' ? (
+                    <div
+                      className={`inline-block p-2 rounded-2xl max-w-xs lg:max-w-md ${
+                        isOwnMessage
+                          ? 'bg-orange-600 text-white rounded-br-none'
+                          : 'bg-gray-100 text-gray-800 rounded-bl-none'
+                      }`}
+                    >
+                      <img
+                        src={msg.content}
+                        alt="Shared image"
+                        className="max-w-full max-h-48 object-cover rounded"
+                      />
+                    </div>
+                  ) : msg.type === 'video' ? (
+                    <div
+                      className={`inline-block p-2 rounded-2xl max-w-xs lg:max-w-md ${
+                        isOwnMessage
+                          ? 'bg-orange-600 text-white rounded-br-none'
+                          : 'bg-gray-100 text-gray-800 rounded-bl-none'
+                      }`}
+                    >
+                      <video
+                        src={msg.content}
+                        controls
+                        className="max-w-full max-h-48 object-cover rounded"
+                      />
+                    </div>
+                  ) : msg.type === 'file' ? (
+                    <div
+                      className={`inline-block p-2 rounded-2xl max-w-xs lg:max-w-md ${
+                        isOwnMessage
+                          ? 'bg-orange-600 text-white rounded-br-none'
+                          : 'bg-gray-100 text-gray-800 rounded-bl-none'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <File className="w-5 h-5" />
+                        <span>Shared file</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className={`inline-block p-3 rounded-2xl max-w-xs lg:max-w-md ${
+                        isOwnMessage
+                          ? 'bg-orange-600 text-white rounded-br-none'
+                          : 'bg-gray-100 text-gray-800 rounded-bl-none'
+                      }`}
+                    >
+                      <p className="text-sm">{msg.message}</p>
+                    </div>
+                  )}
+                  <p className={`text-xs text-gray-500 mt-1 ${
+                    isOwnMessage ? 'text-right' : 'text-left'
+                  }`}>
+                    {formatMessageTime(msg.timestamp)}
+                    {isOwnMessage && !msg.read && (
+                      <span className="ml-1">✓✓</span>
+                    )}
+                    {isOwnMessage && msg.read && (
+                      <span className="ml-1 text-blue-500">✓✓</span>
+                    )}
+                  </p>
                 </div>
               );
             })}
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Message input */}
           <div className="bg-white rounded-lg shadow-sm p-3 flex items-center gap-2 border-t">
-            <button onClick={() => setShowFileUploadModal(true)} className="text-gray-500 hover:text-gray-700"><Paperclip className="w-5 h-5" /></button>
-            <button className="text-gray-500 hover:text-gray-700"><Smile className="w-5 h-5" /></button>
-            <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} placeholder={t('typeMessage')} className="flex-1 px-3 py-2 border-none focus:ring-0 text-sm" />
-            <button onClick={handleSendMessage} disabled={!newMessage.trim()} className="bg-orange-600 text-white p-2 rounded-full hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"><Send className="w-4 h-4" /></button>
+            <button
+              onClick={() => setShowFileUploadModal(true)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <Paperclip className="w-5 h-5" />
+            </button>
+            <button className="text-gray-500 hover:text-gray-700">
+              <Smile className="w-5 h-5" />
+            </button>
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              placeholder={t('typeMessage')}
+              className="flex-1 px-3 py-2 border-none focus:ring-0 text-sm"
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={!newMessage.trim()}
+              className="bg-orange-600 text-white p-2 rounded-full hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Send className="w-4 h-4" />
+            </button>
           </div>
         </main>
 
-        {showFileUploadModal && (<FileUploadModal onUpload={handleFileUpload} onClose={() => setShowFileUploadModal(false)} />)}
+        {/* File Upload Modal */}
+        {showFileUploadModal && (
+          <FileUploadModal
+            onUpload={handleFileUpload}
+            onClose={() => setShowFileUploadModal(false)}
+          />
+        )}
       </div>
     );
   };
 
-  /* -------------------------
-     Render logic
-     ------------------------- */
-  if (currentView === 'welcome') return <WelcomePage />;
-  if (!isLoggedIn) return <Login />;
+  // Render current view
+  if (currentView === 'welcome') {
+    return <WelcomePage />;
+  }
+
+  if (!isLoggedIn) {
+    return <Login />;
+  }
 
   return (
     <>
@@ -1308,10 +1932,26 @@ const App = () => {
       {currentView === 'booking-payment' && <BookingPayment />}
       {currentView === 'payment-confirmation' && <PaymentConfirmation />}
       {currentView === 'chat' && <Chat />}
-
-      {viewingDocument && (<DocumentViewer documentUrl={viewingDocument.url} title={viewingDocument.title} onClose={() => setViewingDocument(null)} />)}
+      
+      {/* Document Viewer */}
+      {viewingDocument && (
+        <DocumentViewer
+          documentUrl={viewingDocument.url}
+          title={viewingDocument.title}
+          onClose={() => setViewingDocument(null)}
+        />
+      )}
     </>
   );
 };
+
+// Globe icon component
+const GlobeIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"></circle>
+    <line x1="2" y1="12" x2="22" y2="12"></line>
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+  </svg>
+);
 
 export default App;
