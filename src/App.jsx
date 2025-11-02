@@ -1,5 +1,5 @@
-// الكود الكامل الذي أرسلته لي (من Import React حتى export default App)
-Import React, { useState, useEffect, useRef } from 'react';
+// تم تصحيح الكلمة "Import" إلى "import" (بحرف صغير)
+import React, { useState, useEffect, useRef } from 'react';
 import { User, Car, Calendar, Clock, MapPin, Phone, MessageSquare, Upload, Star, Settings, LogOut, Plus, Edit, Trash2, CheckCircle, XCircle, Eye, MessageCircle, X, Send, Paperclip, Smile, MoreVertical, AlertTriangle, Check, FileText, CreditCard, ZoomIn, ZoomOut, Image, Camera, File, Video } from 'lucide-react';
 
 const App = () => {
